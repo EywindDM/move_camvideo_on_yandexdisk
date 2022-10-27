@@ -151,12 +151,12 @@ def upload_data_from_camera(cam_name, allfiles, driver):
         script_info['errors'].append('upload_data_from_camera -- ' + cam_name + '--> is empty folder')
 
     folders_in_disk = [element.text for element in driver.find_elements(By.CLASS_NAME, 'listing-item__info')]
-    print(folders_in_disk)
+    # print(folders_in_disk)
 
     files_to_load = [file for file in allfiles if re.search(camera_dict[cam_name], file) is not None]
     new_dirs = set([file.split('/')[-2] for file in allfiles if re.search(camera_dict[cam_name], file) is not None and file.split('/')[-2] not in folders_in_disk])
-    print('new_dirs')
-    print(new_dirs)
+    # print('new_dirs')
+    # print(new_dirs)
 
     creating_new_dirs(driver, new_dirs, cam_name)
     load_files_in_folders(files_to_load, new_dirs, cam_name, driver)
