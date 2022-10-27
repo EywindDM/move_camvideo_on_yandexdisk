@@ -7,12 +7,13 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromiumService
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.utils import ChromeType
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
+
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.utils import ChromeType
 
 from settings import *
 
@@ -21,6 +22,7 @@ options = Options()
 options.add_argument("--headless")
 
 driver = webdriver.Chrome(service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()), options=options)
+# driver.implicitly_wait(0.2)
 
 
 def find_all_files_on_pc_to_load(folder_with_cams):
@@ -54,10 +56,10 @@ def load_files(files, driver, folder):
             WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.upload-button__attach-wrapper')))  # .send_keys(file)
             WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input.upload-button__attach[type="file"]'))).send_keys(file)
 
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'h3.uploader-progress__progress-primary')))
         WebDriverWait(driver, 1000).until(EC.text_to_be_present_in_element((By.CSS_SELECTOR, 'h3.uploader-progress__progress-primary'), 'Все файлы загружены'))
     print(str(len(files)) + ' -- files loaded in folder -->', folder)
     script_info['messages'].append(str(len(files)) + ' -- files loaded in folder -->' + folder)
-
 
 
 def creating_new_dirs(driver, folders, cam_name):
@@ -65,9 +67,11 @@ def creating_new_dirs(driver, folders, cam_name):
     for folder in folders:
         try:
             css = 'button.Button2.Button2_view_raised.Button2_size_m.Button2_width_max'
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, css)))
             WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, css))).click()
 
             css = 'button.create-resource-button.create-resource-popup-with-anchor__create-item[aria-label="Папку"]'
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, css)))
             WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, css))).click()
 
             css = 'form.rename-dialog__rename-form>span>input'
@@ -85,46 +89,42 @@ def creating_new_dirs(driver, folders, cam_name):
             script_info['errors'].append('creating_new_dirs -- ' + cam_name + ' --- ' + 'folder -->' + folder + ' -- NOT CREATED')
             print(err)
 
+def get_folder_with_last_date(folders_to_check):
+    text_to_date = [datetime.datetime.strptime(folder, "%Y%m%d%H") for folder in folders_to_check]
+    sorted_folders_to_check = [x for _, x in sorted(zip(text_to_date, folders_to_check))]
+    return sorted_folders_to_check[-1]
 
-def check_file_in_old_folders_and_download_new_files_if_it_existed(files, cam_name, driver):
-    folders_to_check = set([file.split('/')[-2] for file in files])
-    folders = dict()
+def check_file_in_last_folder_and_download_new_files_if_it_existed(files, cam_name, driver):
+    folders_to_check = list(set([file.split('/')[-2] for file in files]))
+    last_date_folder = get_folder_with_last_date(folders_to_check)
 
-    for folder in folders_to_check:
-        files_in_folder = []
-        for file in files:
-            if file.split('/')[-2] == folder:
-                files_in_folder.append(file)
-        folders.update({folder: files_in_folder})
+    files_in_last_folder = [file for file in files if file.split('/')[-2] == last_date_folder]
 
-    for key, val in folders.items():
-        driver.get(way_to_load + '/' + cam_name + '/' + key)
+    driver.get(way_to_load + '/' + cam_name + '/' + last_date_folder)
 
-        files_in_folder_on_disk = []
-        try:
-            WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'listing-item__info')))
-            css = 'div.listing-item.listing-item_theme_tile.listing-item_size_m.listing-item_type_file.js-prevent-deselect'
-            files_in_folder_on_disk = driver.find_elements(By.CSS_SELECTOR, css)
-            files_in_folder_on_disk = [file.text.replace('\n', '') for file in files_in_folder_on_disk]
-        except TimeoutException:
-            print(cam_name + '--> is empty folder')
-            script_info['errors'].append('check_file_in_old_folders_and_download_new_files_if_it_existed -- ' + cam_name + '--> is empty folder')
+    files_in_folder_on_disk = []
 
+    try:
+        WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'listing-item__info')))
+        css = 'div.listing-item.listing-item_theme_tile.listing-item_size_m.listing-item_type_file.js-prevent-deselect'
+        files_in_folder_on_disk = driver.find_elements(By.CSS_SELECTOR, css)
+        files_in_folder_on_disk = [file.text.replace('\n', '') for file in files_in_folder_on_disk]
+    except TimeoutException:
+        print(cam_name + '--> is empty folder')
+        script_info['errors'].append('check_file_in_old_folders_and_download_new_files_if_it_existed -- ' + cam_name + '--> is empty folder')
 
-        files_to_load = []
-        for file in val:
-            if file.split('/')[-1] not in files_in_folder_on_disk:
-                files_to_load.append(file)
+    files_to_load = []
+    for file in files_in_last_folder:
+        if file.split('/')[-1] not in files_in_folder_on_disk:
+            files_to_load.append(file)
 
-        folder_url = way_to_load + '/' + cam_name + '/' + key
-        driver.get(folder_url)
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.upload-button__attach-wrapper')))
-        load_files(files_to_load, driver, key)
+    WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.upload-button__attach-wrapper')))
+    load_files(files_to_load, driver, last_date_folder)
 
 
-def load_files_in_folders(files_to_load, folders, cam_name, driver):
+def load_files_in_folders(files_to_load, new_dirs, cam_name, driver):
     # print('start load files to new folder')
-    for folder in folders:
+    for folder in new_dirs:
         folder_url = way_to_load + '/' + cam_name + '/' + folder
         driver.get(folder_url)
 
@@ -134,9 +134,9 @@ def load_files_in_folders(files_to_load, folders, cam_name, driver):
     # print('finished load files to new folder')
 
     # load files in old dirs if files not in this dirs
-    files_not_in_new_folders = [file for file in files_to_load if file.split('/')[-2] not in folders]
+    files_not_in_new_folders = [file for file in files_to_load if file.split('/')[-2] not in new_dirs]
     # print('start load files to old folder')
-    check_file_in_old_folders_and_download_new_files_if_it_existed(files_not_in_new_folders, cam_name, driver)
+    check_file_in_last_folder_and_download_new_files_if_it_existed(files_not_in_new_folders, cam_name, driver)
     # print('finished load files to old folder')
 
 
@@ -151,10 +151,12 @@ def upload_data_from_camera(cam_name, allfiles, driver):
         script_info['errors'].append('upload_data_from_camera -- ' + cam_name + '--> is empty folder')
 
     folders_in_disk = [element.text for element in driver.find_elements(By.CLASS_NAME, 'listing-item__info')]
-    # print(folders_in_disk)
+    print(folders_in_disk)
 
     files_to_load = [file for file in allfiles if re.search(camera_dict[cam_name], file) is not None]
     new_dirs = set([file.split('/')[-2] for file in allfiles if re.search(camera_dict[cam_name], file) is not None and file.split('/')[-2] not in folders_in_disk])
+    print('new_dirs')
+    print(new_dirs)
 
     creating_new_dirs(driver, new_dirs, cam_name)
     load_files_in_folders(files_to_load, new_dirs, cam_name, driver)
@@ -232,7 +234,7 @@ def get_disk_info(driver, script_info):
 
 def write_changes_on_file(script_info):
     data_dict = None
-    with open('loggin_file.json', 'r', encoding='utf-8') as f:
+    with open(logging_file, 'r', encoding='utf-8') as f:
         data_dict = json.load(f)
         f.close()
 
@@ -240,7 +242,7 @@ def write_changes_on_file(script_info):
         data_dict['data'].append(script_info)
         data_dict['len'] = len(data_dict['data'])
 
-        with open('loggin_file.json', 'w', encoding='utf-8') as f:
+        with open(logging_file, 'w', encoding='utf-8') as f:
             json.dump(data_dict, f, ensure_ascii=False)
             f.close()
 
@@ -308,7 +310,7 @@ if __name__ == '__main__':
 
         script_info['date'] = datetime.datetime.today().strftime('%d-%m-%Y---%H:%M')
         script_info['script_time_work'] = time.time() - start_time
-        write_changes_on_file(script_info)
+        # write_changes_on_file(script_info)
 
 
 

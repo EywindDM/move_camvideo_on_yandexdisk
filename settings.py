@@ -17,8 +17,10 @@ camera_dict = {'кабинет': '607ea49ecea6',
                'двор': '607ea49f34af'
                }
 
-# cameras_to_write_on_disk = ['парадная', ]
+# cameras_to_write_on_disk = ['мастерская', ]
 cameras_to_write_on_disk = ['парадная', 'кабинет', 'детская', 'мастерская', 'двор']
+
+logging_file = '/home/dmitry/python_projects/move_camvideo_on_yandexdisk/log/loggin_file.json'
 
 # days to keep data in storage
 storage_date = 30
