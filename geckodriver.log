@@ -1,0 +1,2 @@
+1666604083948	geckodriver	INFO	Listening on 127.0.0.1:59311
+1666604083956	webdriver::server	WARN	Rejected request with Host header localhost:59311, allowed values are []

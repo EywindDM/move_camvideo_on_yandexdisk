@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "move-camvideo-on-yandexdisk"
+version = "0.1.0"
+description = "this script move local video files from webcam to yandex disk, and delete old video files on disk"
+authors = ["Eywind <eywinddm@gmail.com>"]
+readme = "README.md"
+packages = [{include = "move_camvideo_on_yandexdisk"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+selenium = "^4.5.0"
+webdriver-manager = "^3.8.4"
+packaging = "^21.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
